@@ -1,46 +1,62 @@
+/* Fill-in information from Blynk Device Info here */
+#define BLYNK_TEMPLATE_ID   "MASUKKAN_TEMPLATE_ID_DISINI"
+#define BLYNK_TEMPLATE_NAME "MASUKKAN_TEMPLATE_NAME_DISINI"
+#define BLYNK_AUTH_TOKEN    "MASUKKAN_AUTH_TOKEN_DISINI"
+
+/* Comment this out to disable prints and save space */
 #define BLYNK_PRINT Serial
 
-//#define BLYNK_TEMPLATE_ID           "TMPxxxxxx"
-//#define BLYNK_TEMPLATE_NAME         "Device"
-//#define BLYNK_AUTH_TOKEN            "YourAuthToken"
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <BlynkSimpleEsp32.h>
+#include "DHT.h"
 
-#include <ESP8266WiFi.h>
-#include <BlynkSimpleEsp8266.h>
-#include <DHT.h>
+// Pengaturan WiFi
+char ssid[] = "NAMA_WIFI_ANDA";
+char pass[] = "PASSWORD_WIFI_ANDA";
 
-// Your WiFi credentials.
-// Set password to "" for open networks.
-char ssid[] = "YourNetworkName";
-char pass[] = "YourPassword";
+// Pengaturan DHT
+#define DHTPIN 4          // GPIO 4
+#define DHTTYPE DHT11     // Ubah ke DHT22 jika perlu
+DHT dht(DHTPIN, DHTTYPE);
 
-void setup()
-{
-  // Debug console
-  Serial.begin(115200);
-  dht.begin();
-  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
-}
+BlynkTimer timer;
 
-void loop()
-{
-  Blynk.run();
-  float humidity = dht.readHumidity();
-  float temperature = dht.readTemperature();
+// Fungsi untuk mengirim data sensor ke Blynk
+void sendSensorData() {
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
 
-  if (isnan(humidity) || isnan(temperature)) {
-    Serial.println("Failed to read from DHT sensor!");
+  if (isnan(h) || isnan(t)) {
+    Serial.println("Gagal membaca dari sensor DHT!");
     return;
   }
 
-Serial.println("Temperature: ");
-Serial.println(temperature);
-Serial.println(" °C, Humidity: ");
-Serial.println(humidity);
-Serial.println(" %");
+  // Kirim ke Virtual Pin di Blynk Cloud
+  Blynk.virtualWrite(V1, t); // V1 untuk Suhu
+  Blynk.virtualWrite(V2, h); // V2 untuk Kelembapan
 
-  Blynk.virtualWrite(V0, humidity);
-  Blynk.virtualWrite(V1, temperature);
-
-  delay(3000); // Update every 2 seconds
+  Serial.print("Data Terkirim -> Suhu: ");
+  Serial.print(t);
+  Serial.print("C, Kelembapan: ");
+  Serial.print(h);
+  Serial.println("%");
 }
 
+void setup() {
+  Serial.begin(115200);
+
+  // Memulai Blynk
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+  
+  // Memulai Sensor
+  dht.begin();
+
+  // Atur interval pengiriman data (misal: setiap 2 detik)
+  timer.setInterval(2000L, sendSensorData);
+}
+
+void loop() {
+  Blynk.run();
+  timer.run(); // Menjalankan timer Blynk
+}
